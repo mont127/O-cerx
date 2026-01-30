@@ -483,7 +483,7 @@ try {
     $bak = $fallback + '.ocer.bak'
 
     Info ("Autoboot strategy (2): writing fallback $fallback")
-    if (Test-Path -LiteralPath $fallback -and -not (Test-Path -LiteralPath $bak)) {
+    if ((Test-Path -LiteralPath $fallback) -and (-not (Test-Path -LiteralPath $bak))) {
       Info ("Backing up existing fallback -> $bak")
       Copy-Item -LiteralPath $fallback -Destination $bak -Force
     }
