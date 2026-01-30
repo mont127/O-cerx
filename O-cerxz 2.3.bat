@@ -63,7 +63,7 @@ if not exist "%PSFILE%" (
   exit /b 1
 )
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%PSFILE%" -- %*
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PSFILE%" %*
 set "RC=%ERRORLEVEL%"
 del "%PSFILE%" >nul 2>&1
 
