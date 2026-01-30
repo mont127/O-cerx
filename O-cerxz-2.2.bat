@@ -4,9 +4,9 @@ setlocal EnableExtensions
 rem ==========================================================
 rem  O-cerxz 2.2 (single .bat)
 rem
-rem  Goal: Stage a Linux ISO's UEFI boot files onto the internal ESP and
-rem        optionally force the *next* reboot to boot the staged EFI app
-rem        automatically (no USB).
+rem  Stages a Linux ISO's UEFI boot files onto the internal ESP and
+rem  optionally forces the *next* reboot to boot the staged EFI app
+rem  automatically (no USB).
 rem
 rem  What this DOES (Windows-side):
 rem   - Verify UEFI (fail-closed)
@@ -20,18 +20,13 @@ rem  Autoboot strategies (best-effort):
 rem   1) Firmware BootNext via bcdedit (safe, often blocked on OEM)
 rem   2) Copy staged loader to default fallback path ESP\EFI\Boot\BOOT*.EFI (medium)
 rem   3) TEMP swap Windows Boot Manager (ESP\EFI\Microsoft\Boot\bootmgfw.efi) (risky)
-rem      + NEW in 2.2: also copy companion *.EFI into EFI\Microsoft\Boot
-rem        so loaders that expect grub*.efi in that directory can find it.
+rem      + Copies companion *.EFI into EFI\Microsoft\Boot so loaders that
+rem        expect grub*.efi in that directory can find it.
 rem   4) None (manual boot menu)
 rem
 rem  Restore mode:
 rem   - Run: O-cerxz-2.2.bat /restore
-rem   - Restores any backups created by strategy (2) or (3)
-rem
-rem  Notes:
-rem   - Some firmwares ignore BootNext and do not provide "Boot from EFI file".
-rem     In those cases, only (2) or (3) can be made automatic.
-rem   - Strategy (3) requires Secure Boot OFF.
+rem   - Restores backups created by (2) or (3)
 rem ==========================================================
 
 title O-cerxz Prep 2.2
@@ -234,7 +229,7 @@ function Mount-IsoAndGetDrive([string]$path) {
   if (-not $vol.DriveLetter) {
     $letter = Get-FreeLetterAll
     if (-not $letter) { Fail 'ISO has no drive letter and no free letters are available.' }
-    Info ("Assigning drive letter $letter: to ISO volume...")
+    Info ("Assigning drive letter ${letter}: to ISO volume...")
     try {
       $vol | Set-Volume -NewDriveLetter $letter -ErrorAction Stop | Out-Null
     } catch {
@@ -277,7 +272,7 @@ if ($argsList.Count -gt 0 -and $argsList[0].ToLowerInvariant() -eq '/restore') {
       }
     }
 
-    # Generic: restore any companion EFI backups created by strategy (3)
+    # Restore any companion EFI backups created by strategy (3)
     $msBoot = Join-Path $espMount 'EFI\Microsoft\Boot'
     if (Test-Path -LiteralPath $msBoot) {
       Get-ChildItem -LiteralPath $msBoot -Filter '*.ocer.bak' -File -ErrorAction SilentlyContinue | ForEach-Object {
@@ -512,10 +507,6 @@ try {
   }
 
   if ($auto -eq '3') {
-    # Swap Windows Boot Manager to force firmware to load our EFI.
-    # Many loaders expect companion files (e.g. grubaa64.efi/grubx64.efi) in the SAME directory.
-    # So we also copy staged *.EFI into EFI\Microsoft\Boot (without touching BCD/fonts/etc).
-
     $msBootDir = Join-Path $espMount 'EFI\Microsoft\Boot'
     $winBoot   = Join-Path $msBootDir 'bootmgfw.efi'
     $winBak    = $winBoot + '.ocer.bak'
@@ -532,7 +523,7 @@ try {
 
     New-Item -ItemType Directory -Force -Path $msBootDir | Out-Null
 
-    # Copy companion EFI files
+    # Copy companion EFI files into Microsoft\Boot
     try {
       $efiFiles = Get-ChildItem -LiteralPath $dstRoot -Filter '*.EFI' -File -ErrorAction SilentlyContinue
       foreach ($f in $efiFiles) {
@@ -550,7 +541,7 @@ try {
       Warn ('Copying companion EFI files failed (may still boot): ' + $_.Exception.Message)
     }
 
-    # Finally swap bootmgfw.efi itself
+    # Swap bootmgfw.efi itself
     Copy-Item -LiteralPath $dstBootEfi -Destination $winBoot -Force
 
     Ok 'Windows Boot Manager swapped for next boot.'
